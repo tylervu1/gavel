@@ -11,7 +11,7 @@ import subprocess
 
 from job import Job
 from job_table import JobTable
-from policies import allox, fifo, finish_time_fairness, gandiva, isolated, \
+from policies import allox, fifo, lifo, finish_time_fairness, gandiva, isolated, \
     max_min_fairness, max_min_fairness_water_filling, max_sum_throughput, \
     min_total_duration
 
@@ -205,6 +205,7 @@ def get_available_policies():
             'finish_time_fairness_packed',
             'gandiva',
             'isolated',
+            'lifo',
             'max_min_fairness',
             'max_min_fairness_perf',
             'max_min_fairness_packed',
@@ -441,6 +442,8 @@ def get_policy(policy_name, solver=None, seed=None,
         policy = allox.AlloXPolicy(alpha=alpha)
     elif policy_name == 'fifo':
         policy = fifo.FIFOPolicy(seed=seed)
+    elif policy_name == 'lifo':
+        policy = lifo.LIFOPolicy(seed=seed)
     elif policy_name == 'fifo_perf':
         policy = fifo.FIFOPolicyWithPerf()
     elif policy_name == 'fifo_packed':
