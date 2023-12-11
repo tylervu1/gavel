@@ -7,7 +7,6 @@ glog
 grpcio
 grpcio-tools
 gym
-gym[atari]
 matplotlib
 matrix_completion
 numa
@@ -19,5 +18,5 @@ psutil
 seaborn
 setproctitle
 scikit-learn
-torch==1.4.0
-torchvision==0.5.0
+torch
+torchvision
