@@ -26,7 +26,7 @@ class LIFOPolicy(Policy):
             # throughput would provide a signficant gain.
             max_packed_throughput = self._packing_threshold
             job_id_to_pack_with = None
-            job_id_to_schedule = queue.pop(0)
+            job_id_to_schedule = queue.pop()
 
             # Find the already scheduled job with which the next job on
             # the queue will pack best with.
@@ -83,16 +83,13 @@ class LIFOPolicy(Policy):
             self._allocation = {}
 
         # Add all jobs that have not been allocated already to the queue.
-        # Jobs should be added in order of arrival (i.e., according to Job ID).
-        for job_id in sorted(list(throughputs.keys()), reverse=True):  # Reverse for LIFO
+        for job_id in throughputs:
             if job_id not in self._allocation and not job_id.is_pair():
                 queue.append(job_id)
 
-        # Find all completed jobs and schedule jobs off the queue to replace
-        # them. Also determine how many workers are available.
-        for scheduled_job_id in sorted(list(self._allocation.keys()), reverse=True):  # Reverse for LIFO
+        # Handling completed jobs
+        for scheduled_job_id in list(self._allocation.keys()):  # Use a list of keys
             worker_type = self._allocation[scheduled_job_id]
-            # Check if job has completed.
             if scheduled_job_id not in throughputs:
                 for single_job_id in scheduled_job_id.singletons():
                     if single_job_id in throughputs:
@@ -107,8 +104,7 @@ class LIFOPolicy(Policy):
                 del self._allocation[scheduled_job_id]
                 del self._scale_factors[scheduled_job_id]
             else:
-                # Job has not completed, subtract its allocated workers
-                # from available_workers.
+                # Subtract allocated workers from available_workers.
                 available_workers[worker_type] -= \
                     scale_factors[scheduled_job_id]
 
@@ -120,8 +116,35 @@ class LIFOPolicy(Policy):
         while len(queue) > 0 and len(available_worker_types) > 0:
             job_id_to_schedule = queue.pop()  # Pop last element for LIFO
             scale_factor = scale_factors[job_id_to_schedule]
-            # The rest of the resource allocation logic remains the same as FIFO
-            # ...
+            available_worker_types_with_scale_factor = []
+            original_available_worker_types_mapping = []
+            for i, worker_type in enumerate(available_worker_types):
+                if available_workers[worker_type] >= scale_factor:
+                    available_worker_types_with_scale_factor.append(worker_type)
+                    original_available_worker_types_mapping.append(i)
+            if len(available_worker_types_with_scale_factor) == 0:
+                break
+            if self._mode == 'base':
+                worker_type_idx = self._rng.randrange(
+                        len(available_worker_types_with_scale_factor))
+            else:
+                # Find the worker_type with best performance for this job.
+                worker_type = None
+                worker_type_idx = None
+                max_throughput = -1
+                for i, x in enumerate(available_worker_types_with_scale_factor):
+                    throughput = throughputs[job_id_to_schedule][x]
+                    if throughput > max_throughput:
+                        max_throughput = throughput
+                        worker_type = x
+                        worker_type_idx = i
+            if throughputs[job_id_to_schedule][worker_type] > 0.0:
+                self._allocation[job_id_to_schedule] = worker_type
+                available_workers[worker_type] -= scale_factors[job_id_to_schedule]
+                if available_workers[worker_type] == 0:
+                    worker_type_idx =\
+                        original_available_worker_types_mapping[worker_type_idx]
+                    available_worker_types.pop(worker_type_idx)
 
         # Packing logic can remain the same as in FIFO or be modified as per requirements
         if self._mode == 'packing':
