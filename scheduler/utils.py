@@ -501,8 +501,10 @@ def get_policy(policy_name, solver=None, seed=None,
             min_total_duration.MinTotalDurationPolicyWithPacking(solver=solver)
     elif policy_name == 'sjf':
         policy = sjf.SJFPolicy(seed=seed)
-    elif policy_name == 'SJF_Packing':
-        policy = sjf.SJFPolicyWithPacking(seed=seed)
+    elif policy_name == 'sjf_packed':
+        # Add a new condition for SJF with packing
+        packing_threshold = 1.5  # Adjust as needed
+        policy = sjf.SJFPolicyWithPacking(packing_threshold=packing_threshold)
     elif policy_name == 'srtf':
         policy = srtf.SRTFPolicy(seed=seed)
     else:
