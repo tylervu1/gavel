@@ -21,40 +21,45 @@ class SRTFPolicy(Policy):
 
     def get_allocation(self, throughputs, scale_factors, cluster_spec):
         available_workers = copy.deepcopy(cluster_spec)
-        queue = []
+        running_jobs = set(self._allocation.keys())  # Track running jobs
+        new_jobs_queue = []
 
-        # Update scale_factors
-        for job_id in scale_factors:
-            self._scale_factors[job_id] = scale_factors[job_id]
-
-        # Queue jobs that are not yet allocated
+        # Update and queue jobs
         for job_id in throughputs:
             if job_id not in self._allocation:
-                queue.append(job_id)
+                new_jobs_queue.append(job_id)
+            self.remaining_times[job_id] = throughputs[job_id].remaining_time
 
-        # Sort jobs by remaining time
-        queue.sort(key=lambda job_id: self.remaining_times.get(job_id, float('inf')))
+        # Sort new jobs by remaining time
+        new_jobs_queue.sort(key=lambda job_id: self.remaining_times.get(job_id, float('inf')))
 
-        # Allocate resources based on SRTF
-        while queue and any(available_workers.values()):
-            job_id_to_schedule = queue.pop(0)
-            scale_factor = self._scale_factors[job_id_to_schedule]
+        # Check for preemption
+        while new_jobs_queue:
+            new_job_id = new_jobs_queue.pop(0)
+            new_job_remaining_time = self.remaining_times[new_job_id]
+
+            for running_job_id in running_jobs:
+                if self.remaining_times[running_job_id] > new_job_remaining_time:
+                    # Preempt the running job
+                    worker_type = self._allocation[running_job_id]
+                    available_workers[worker_type] += scale_factors[running_job_id]
+                    del self._allocation[running_job_id]
+                    running_jobs.remove(running_job_id)
+                    break  # Preempt only one job at a time
+
+            # Allocate resources to new job
+            scale_factor = scale_factors[new_job_id]
             for worker_type, available in available_workers.items():
                 if available >= scale_factor:
-                    self._allocation[job_id_to_schedule] = worker_type
+                    self._allocation[new_job_id] = worker_type
                     available_workers[worker_type] -= scale_factor
+                    running_jobs.add(new_job_id)
                     break
 
         # Construct final allocation
         final_allocation = {job_id: {worker_type: 0.0 for worker_type in cluster_spec} for job_id in throughputs}
         for job_id, worker_type in self._allocation.items():
-            if job_id in final_allocation and worker_type in final_allocation[job_id]:
-                final_allocation[job_id][worker_type] = 1.0
-            else:
-                # Handle the case where job_id or worker_type is not recognized
-                # This could be a logging statement or other error handling
-                print(f"Warning: Job ID {job_id} or Worker Type {worker_type} not recognized.")
-
+            final_allocation[job_id][worker_type] = 1.0
 
         return final_allocation
 
