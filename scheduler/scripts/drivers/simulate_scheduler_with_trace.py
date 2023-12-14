@@ -53,11 +53,6 @@ def main(args):
     sched.get_cluster_utilization()
     sched.get_num_lease_extensions()
 
-    # After the simulation run
-    wait_times = scheduler.calculate_wait_times()
-    fairness_index = calculate_fairness(wait_times)
-    print("Fairness Index:", fairness_index)
-
     sched.shutdown()
 
 if __name__=='__main__':

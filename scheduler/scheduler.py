@@ -1832,20 +1832,6 @@ class Scheduler:
                 if is_final_round:
                     break
 
-    def calculate_wait_times(self):
-        wait_times = {}
-        for job_id, job in self.jobs.items():  # Assuming 'jobs' is a dictionary of job objects
-            wait_time = job.start_time - job.arrival_time  # Modify as per your data structure
-            wait_times[job_id] = wait_time
-        return wait_times
-
-    def calculate_fairness(wait_times):
-        sum_of_wait_times = sum(wait_times.values())
-        sum_of_squares = sum(time ** 2 for time in wait_times.values())
-        n = len(wait_times)
-        fairness_index = (sum_of_wait_times ** 2) / (n * sum_of_squares)
-        return fairness_index
-
     def get_average_jct(self, job_ids=None, verbose=True):
         """Computes the average job completion time.
 
