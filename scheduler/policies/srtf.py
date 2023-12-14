@@ -17,44 +17,33 @@ class SRTFPolicy(Policy):
     def update_remaining_times(self, throughputs):
         # Update remaining_times with the remaining time of each job
         for job_id, job_data in throughputs.items():
-            self.remaining_times[job_id] = job_data.remaining_time
+            # Adjust the following line based on the actual structure
+            self.remaining_times[job_id] = job_data['remaining_time']  # Replace 'remaining_time' with the correct key
 
     def get_allocation(self, throughputs, scale_factors, cluster_spec):
         available_workers = copy.deepcopy(cluster_spec)
-        running_jobs = set(self._allocation.keys())
-        new_jobs_queue = []
+        queue = []
 
-        # Update and queue jobs
+        # Update scale_factors
+        for job_id in scale_factors:
+            self._scale_factors[job_id] = scale_factors[job_id]
+
+        # Queue jobs that are not yet allocated
         for job_id in throughputs:
             if job_id not in self._allocation:
-                new_jobs_queue.append(job_id)
-            # Assume 'throughputs[job_id]' is a dictionary with 'remaining_time' key
-            self.remaining_times[job_id] = throughputs[job_id]['remaining_time']
+                queue.append(job_id)
 
-        # Sort new jobs by remaining time
-        new_jobs_queue.sort(key=lambda job_id: self.remaining_times.get(job_id, float('inf')))
+        # Sort jobs by remaining time
+        queue.sort(key=lambda job_id: self.remaining_times.get(job_id, float('inf')))
 
-        # Check for preemption
-        while new_jobs_queue:
-            new_job_id = new_jobs_queue.pop(0)
-            new_job_remaining_time = self.remaining_times[new_job_id]
-
-            for running_job_id in list(running_jobs):  # Use list to avoid modification during iteration
-                if self.remaining_times[running_job_id] > new_job_remaining_time:
-                    # Preempt the running job
-                    worker_type = self._allocation[running_job_id]
-                    available_workers[worker_type] += scale_factors[running_job_id]
-                    del self._allocation[running_job_id]
-                    running_jobs.remove(running_job_id)
-                    break
-
-            # Allocate resources to new job
-            scale_factor = scale_factors[new_job_id]
+        # Allocate resources based on SRTF
+        while queue and any(available_workers.values()):
+            job_id_to_schedule = queue.pop(0)
+            scale_factor = self._scale_factors[job_id_to_schedule]
             for worker_type, available in available_workers.items():
                 if available >= scale_factor:
-                    self._allocation[new_job_id] = worker_type
+                    self._allocation[job_id_to_schedule] = worker_type
                     available_workers[worker_type] -= scale_factor
-                    running_jobs.add(new_job_id)
                     break
 
         # Construct final allocation
