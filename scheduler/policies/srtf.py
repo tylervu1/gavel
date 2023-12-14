@@ -24,22 +24,28 @@ class SRTFPolicy(Policy):
         available_workers = copy.deepcopy(cluster_spec)
         queue = []
 
-        # Update scale_factors
+        # Update scale_factors and queue jobs
         for job_id in scale_factors:
             self._scale_factors[job_id] = scale_factors[job_id]
-
-        # Queue jobs that are not yet allocated
-        for job_id in throughputs:
             if job_id not in self._allocation:
                 queue.append(job_id)
 
         # Sort jobs by remaining time
         queue.sort(key=lambda job_id: self.remaining_times.get(job_id, float('inf')))
 
-        # Allocate resources based on SRTF
+        # Iterate through the queue and allocate resources
         while queue and any(available_workers.values()):
             job_id_to_schedule = queue.pop(0)
             scale_factor = self._scale_factors[job_id_to_schedule]
+
+            # Check if a running job has longer remaining time than the job to schedule
+            for running_job_id, worker_type in list(self._allocation.items()):
+                if self.remaining_times[running_job_id] > self.remaining_times[job_id_to_schedule]:
+                    # Pause the longer running job
+                    available_workers[worker_type] += scale_factor
+                    del self._allocation[running_job_id]
+
+            # Allocate resources to the job with the shortest remaining time
             for worker_type, available in available_workers.items():
                 if available >= scale_factor:
                     self._allocation[job_id_to_schedule] = worker_type
@@ -49,11 +55,7 @@ class SRTFPolicy(Policy):
         # Construct final allocation
         final_allocation = {job_id: {worker_type: 0.0 for worker_type in cluster_spec} for job_id in throughputs}
         for job_id, worker_type in self._allocation.items():
-            if job_id in final_allocation and worker_type in final_allocation[job_id]:
-                final_allocation[job_id][worker_type] = 1.0
-            else:
-                # Handle the case where job_id or worker_type is not recognized
-                print(f"Warning: Job ID {job_id} or Worker Type {worker_type} not recognized in final allocation.")
+            final_allocation[job_id][worker_type] = 1.0
 
         return final_allocation
 
