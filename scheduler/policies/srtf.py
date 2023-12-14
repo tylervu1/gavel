@@ -112,3 +112,19 @@ class SRTFPolicyWithPacking(PolicyWithPacking):
 
         # Construct final allocation
         return self._construct_final_allocation(throughputs, cluster_spec)
+
+    def _construct_final_allocation(self, throughputs, cluster_spec):
+        final_allocation = {}
+        for job_id in throughputs:
+            final_allocation[job_id] = {worker_type: 0.0 for worker_type in cluster_spec}
+            if job_id in self._allocation:
+                # Allocate for individual jobs
+                worker_type = self._allocation[job_id]
+                final_allocation[job_id][worker_type] = 1.0
+            elif any(isinstance(key, job_id_pair.JobIdPair) and job_id in key for key in self._allocation):
+                # Allocate for packed jobs
+                for key, allocated_worker in self._allocation.items():
+                    if isinstance(key, job_id_pair.JobIdPair) and job_id in key:
+                        final_allocation[job_id][allocated_worker] = 1.0
+
+        return final_allocation
