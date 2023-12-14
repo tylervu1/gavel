@@ -38,9 +38,11 @@ class SRTFPolicy(Policy):
             job_id_to_schedule = queue.pop(0)
             scale_factor = self._scale_factors[job_id_to_schedule]
 
-            # Check if a running job has longer remaining time than the job to schedule
             for running_job_id, worker_type in list(self._allocation.items()):
-                if self.remaining_times[running_job_id] > self.remaining_times[job_id_to_schedule]:
+                if (running_job_id in self.remaining_times and
+                    job_id_to_schedule in self.remaining_times and
+                    self.remaining_times[running_job_id] > self.remaining_times[job_id_to_schedule]):
+
                     # Pause the longer running job
                     available_workers[worker_type] += scale_factor
                     del self._allocation[running_job_id]
