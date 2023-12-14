@@ -13,7 +13,7 @@ from job import Job
 from job_table import JobTable
 from policies import allox, fifo, lifo, finish_time_fairness, gandiva, isolated, \
     max_min_fairness, max_min_fairness_water_filling, max_sum_throughput, \
-    min_total_duration
+    min_total_duration, srtf
 
 def _generate_scale_factor(rng):
     # Sample the scale factor from the Philly distribution.
@@ -219,6 +219,7 @@ def get_available_policies():
             'min_total_duration',
             'min_total_duration_perf',
             'min_total_duration_packed',
+            'srtf',
             ]
 
 def read_per_instance_type_spot_prices_aws(directory):
@@ -496,6 +497,8 @@ def get_policy(policy_name, solver=None, seed=None,
     elif policy_name == 'min_total_duration_packed':
         policy = \
             min_total_duration.MinTotalDurationPolicyWithPacking(solver=solver)
+    elif policy_name == 'srtf':
+        policy = srtf.SRTFPolicy(seed=seed)
     else:
         raise ValueError('Unknown policy!')
     return policy
