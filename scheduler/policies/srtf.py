@@ -21,14 +21,15 @@ class SRTFPolicy(Policy):
 
     def get_allocation(self, throughputs, scale_factors, cluster_spec):
         available_workers = copy.deepcopy(cluster_spec)
-        running_jobs = set(self._allocation.keys())  # Track running jobs
+        running_jobs = set(self._allocation.keys())
         new_jobs_queue = []
 
         # Update and queue jobs
         for job_id in throughputs:
             if job_id not in self._allocation:
                 new_jobs_queue.append(job_id)
-            self.remaining_times[job_id] = throughputs[job_id].remaining_time
+            # Assume 'throughputs[job_id]' is a dictionary with 'remaining_time' key
+            self.remaining_times[job_id] = throughputs[job_id]['remaining_time']
 
         # Sort new jobs by remaining time
         new_jobs_queue.sort(key=lambda job_id: self.remaining_times.get(job_id, float('inf')))
@@ -38,14 +39,14 @@ class SRTFPolicy(Policy):
             new_job_id = new_jobs_queue.pop(0)
             new_job_remaining_time = self.remaining_times[new_job_id]
 
-            for running_job_id in running_jobs:
+            for running_job_id in list(running_jobs):  # Use list to avoid modification during iteration
                 if self.remaining_times[running_job_id] > new_job_remaining_time:
                     # Preempt the running job
                     worker_type = self._allocation[running_job_id]
                     available_workers[worker_type] += scale_factors[running_job_id]
                     del self._allocation[running_job_id]
                     running_jobs.remove(running_job_id)
-                    break  # Preempt only one job at a time
+                    break
 
             # Allocate resources to new job
             scale_factor = scale_factors[new_job_id]
