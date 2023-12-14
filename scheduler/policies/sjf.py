@@ -55,16 +55,6 @@ class SJFPolicy(Policy):
 
         return final_allocation
 
-class SJFPolicyWithPerf(Policy):
-    def __init__(self, packing=False):
-        self._name = 'SJF_Perf'
-        self._packing = packing
-        self._policy = SJFPolicy(mode='perf')
-
-    def get_allocation(self, throughputs, scale_factors, cluster_spec):
-        return self._policy.get_allocation(throughputs, scale_factors,
-                                           cluster_spec)
-
 class SJFPolicyWithPacking(PolicyWithPacking):
 
     def __init__(self, seed=None, packing_threshold=1.5):
