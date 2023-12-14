@@ -220,6 +220,7 @@ def get_available_policies():
             'min_total_duration_perf',
             'min_total_duration_packed',
             'sjf',
+            'sjf_packing'
             'srtf',
             ]
 
@@ -500,6 +501,8 @@ def get_policy(policy_name, solver=None, seed=None,
             min_total_duration.MinTotalDurationPolicyWithPacking(solver=solver)
     elif policy_name == 'sjf':
         policy = sjf.SJFPolicy(seed=seed)
+    elif policy_name == 'SJF_Packing':
+        policy = sjf.SJFPolicyWithPacking(seed=seed)
     elif policy_name == 'srtf':
         policy = srtf.SRTFPolicy(seed=seed)
     else:
