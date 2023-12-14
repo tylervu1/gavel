@@ -1,5 +1,5 @@
-# Use Ubuntu 16.04 as the base image
-FROM ubuntu:16.04
+# Use an ARM64 compatible base image
+FROM ubuntu:20.04
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -11,15 +11,22 @@ RUN apt-get update && apt-get install -y \
     numactl \
     zlib1g-dev
 
-# Install Miniconda for Python 3.8
-ENV MINICONDA_VERSION Miniconda3-py38_4.10.3-Linux-x86_64.sh
+# Install OpenBLAS and other dependencies
+RUN apt-get update && apt-get install -y \
+    libopenblas-dev \
+    liblapack-dev \
+    gfortran \
+    pkg-config
+
+# Install Miniconda for ARM64
+ENV MINICONDA_VERSION Miniconda3-latest-Linux-aarch64.sh
 RUN apt-get install -y wget && \
     wget https://repo.anaconda.com/miniconda/${MINICONDA_VERSION} && \
     bash ${MINICONDA_VERSION} -b -p /miniconda && \
     rm ${MINICONDA_VERSION}
 ENV PATH="/miniconda/bin:${PATH}"
 
-# Set up the Python environment
+# Create the Python environment
 RUN conda create -n gavel-env python=3.8
 ENV PATH /miniconda/envs/gavel-env/bin:$PATH
 RUN /bin/bash -c "source activate gavel-env"
