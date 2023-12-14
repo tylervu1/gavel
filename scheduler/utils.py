@@ -222,7 +222,7 @@ def get_available_policies():
             'sjf',
             'sjf_packed',
             'srtf',
-            'srtf_packing',
+            'srtf_packed',
             ]
 
 def read_per_instance_type_spot_prices_aws(directory):
@@ -508,7 +508,7 @@ def get_policy(policy_name, solver=None, seed=None,
         policy = sjf.SJFPolicyWithPacking(packing_threshold=packing_threshold)
     elif policy_name == 'srtf':
         policy = srtf.SRTFPolicy(seed=seed)
-    elif policy_name == 'srtf_packing':
+    elif policy_name == 'srtf_packed':
         policy = srtf.SRTFPolicyWithPacking(seed=seed)
     else:
         raise ValueError('Unknown policy!')
