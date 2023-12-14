@@ -48,7 +48,13 @@ class SRTFPolicy(Policy):
         # Construct final allocation
         final_allocation = {job_id: {worker_type: 0.0 for worker_type in cluster_spec} for job_id in throughputs}
         for job_id, worker_type in self._allocation.items():
-            final_allocation[job_id][worker_type] = 1.0
+            if job_id in final_allocation and worker_type in final_allocation[job_id]:
+                final_allocation[job_id][worker_type] = 1.0
+            else:
+                # Handle the case where job_id or worker_type is not recognized
+                # This could be a logging statement or other error handling
+                print(f"Warning: Job ID {job_id} or Worker Type {worker_type} not recognized.")
+
 
         return final_allocation
 
