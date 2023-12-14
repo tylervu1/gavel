@@ -21,43 +21,39 @@ class SRTFPolicy(Policy):
             self.remaining_times[job_id] = job_data['remaining_time']  # Replace 'remaining_time' with the correct key
 
     def get_allocation(self, throughputs, scale_factors, cluster_spec):
+        # Copy of the cluster specification to track available resources
         available_workers = copy.deepcopy(cluster_spec)
-        queue = []
 
-        # Update scale_factors and queue jobs
+        # Initialize final_allocation with all job IDs in throughputs
+        final_allocation = {job_id: {worker_type: 0.0 for worker_type in cluster_spec} for job_id in throughputs}
+
+        # Update scale_factors based on current data
         for job_id in scale_factors:
             self._scale_factors[job_id] = scale_factors[job_id]
-            if job_id not in self._allocation:
-                queue.append(job_id)
 
-        # Sort jobs by remaining time
+        # Prepare a queue of jobs not yet allocated
+        queue = [job_id for job_id in throughputs if job_id not in self._allocation]
+
+        # Sort jobs by their remaining time
         queue.sort(key=lambda job_id: self.remaining_times.get(job_id, float('inf')))
 
-        # Iterate through the queue and allocate resources
+        # Allocate resources based on SRTF
         while queue and any(available_workers.values()):
             job_id_to_schedule = queue.pop(0)
             scale_factor = self._scale_factors[job_id_to_schedule]
 
-            for running_job_id, worker_type in list(self._allocation.items()):
-                if (running_job_id in self.remaining_times and
-                    job_id_to_schedule in self.remaining_times and
-                    self.remaining_times[running_job_id] > self.remaining_times[job_id_to_schedule]):
-
-                    # Pause the longer running job
-                    available_workers[worker_type] += scale_factor
-                    del self._allocation[running_job_id]
-
-            # Allocate resources to the job with the shortest remaining time
+            # Find an available worker for the job with the shortest remaining time
             for worker_type, available in available_workers.items():
                 if available >= scale_factor:
+                    # Allocate this worker to the job
                     self._allocation[job_id_to_schedule] = worker_type
                     available_workers[worker_type] -= scale_factor
                     break
 
-        # Construct final allocation
-        final_allocation = {job_id: {worker_type: 0.0 for worker_type in cluster_spec} for job_id in throughputs}
+        # Set allocation values in final_allocation
         for job_id, worker_type in self._allocation.items():
-            final_allocation[job_id][worker_type] = 1.0
+            if job_id in final_allocation and worker_type in final_allocation[job_id]:
+                final_allocation[job_id][worker_type] = 1.0
 
         return final_allocation
 
