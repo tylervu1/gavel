@@ -3,7 +3,8 @@ sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 
 import copy
 import random
-from policy import Policy
+import job_id_pair
+from policy import Policy, PolicyWithPacking
 
 class SRTFPolicy(Policy):
     def __init__(self, seed=None):
