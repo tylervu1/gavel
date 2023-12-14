@@ -220,7 +220,7 @@ def get_available_policies():
             'min_total_duration_perf',
             'min_total_duration_packed',
             'sjf',
-            'sjf_packing'
+            'sjf_packing',
             'srtf',
             ]
 
