@@ -8,54 +8,59 @@ from policy import Policy, PolicyWithPacking
 
 class SRTFPolicy(Policy):
     def __init__(self, seed=None):
+        super().__init__()
         self._name = 'SRTF'
         self._allocation = {}
         self._scale_factors = {}
-        self.remaining_times = {}
+        self._remaining_times = {}
+        self.running_job = None
         self._rng = random.Random(seed) if seed is not None else random.Random()
 
-    def update_remaining_times(self, throughputs):
-        # Update remaining_times with the remaining time of each job
-        for job_id, job_data in throughputs.items():
-            # Adjust the following line based on the actual structure
-            self.remaining_times[job_id] = job_data['remaining_time']  # Replace 'remaining_time' with the correct key
+    def update_remaining_times(self, job_updates):
+        for job_id, remaining_time in job_updates.items():
+            self._remaining_times[job_id] = remaining_time
+
+    def on_job_arrival(self, job_id, current_time):
+        # Update the remaining times of all jobs, including the newly arrived job
+        self.update_remaining_times()  # Update based on current_time
+
+        # Make a scheduling decision
+        self.make_scheduling_decision(current_time)
+
+    def on_job_completion(self, job_id, current_time):
+        # Mark the job as completed
+        if self.running_job == job_id:
+            self.running_job = None
+
+        # Update the remaining times of all jobs
+        self.update_remaining_times()  # Update based on current_time
+
+        # Make a scheduling decision
+        self.make_scheduling_decision(current_time)
+
+    def make_scheduling_decision(self, current_time):
+        # Choose the next job to run
+        next_job = min(self._remaining_times, key=self._remaining_times.get, default=None)
+
+        if next_job and (self.running_job is None or self._remaining_times[next_job] < self._remaining_times[self.running_job]):
+            self.preempt_job(current_time)
+            self.schedule_next_job(next_job, current_time)
+
+    def preempt_job(self, current_time):
+        if self.running_job:
+            # Logic to free up resources for the currently running job
+            # Update the allocation for the running job to indicate it's no longer using resources
+            self._allocation[self.running_job] = None
+
+    def schedule_next_job(self, next_job, current_time):
+        # Logic to allocate resources to the next job
+        # Assuming 'next_job' fits into the available resources
+        self._allocation[next_job] = 'allocated'  # Replace with actual resource allocation logic
+        self.running_job = next_job
 
     def get_allocation(self, throughputs, scale_factors, cluster_spec):
-        # Copy of the cluster specification to track available resources
-        available_workers = copy.deepcopy(cluster_spec)
-
-        # Initialize final_allocation with all job IDs in throughputs
-        final_allocation = {job_id: {worker_type: 0.0 for worker_type in cluster_spec} for job_id in throughputs}
-
-        # Update scale_factors based on current data
-        for job_id in scale_factors:
-            self._scale_factors[job_id] = scale_factors[job_id]
-
-        # Prepare a queue of jobs not yet allocated
-        queue = [job_id for job_id in throughputs if job_id not in self._allocation]
-
-        # Sort jobs by their remaining time
-        queue.sort(key=lambda job_id: self.remaining_times.get(job_id, float('inf')))
-
-        # Allocate resources based on SRTF
-        while queue and any(available_workers.values()):
-            job_id_to_schedule = queue.pop(0)
-            scale_factor = self._scale_factors[job_id_to_schedule]
-
-            # Find an available worker for the job with the shortest remaining time
-            for worker_type, available in available_workers.items():
-                if available >= scale_factor:
-                    # Allocate this worker to the job
-                    self._allocation[job_id_to_schedule] = worker_type
-                    available_workers[worker_type] -= scale_factor
-                    break
-
-        # Set allocation values in final_allocation
-        for job_id, worker_type in self._allocation.items():
-            if job_id in final_allocation and worker_type in final_allocation[job_id]:
-                final_allocation[job_id][worker_type] = 1.0
-
-        return final_allocation
+        # Return the current allocation
+        return self._allocation
 
 
 class SRTFPolicyWithPacking(PolicyWithPacking):
