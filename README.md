@@ -2,6 +2,19 @@
 
 This repository contains the source code implementation of the OSDI paper
 "Heterogeneity-Aware Cluster Scheduling Policies for Deep Learning Workloads".
+The full writeup for our COS316 final project can be found here:
+https://docs.google.com/document/d/1UyNbXnTeb6vuWOPzF1QgmYuzp8sCvZ9euJOEKOAidaA/edit?usp=sharing
+
+## Project Goals and Description
+Using Rui’s Idea #2 as a template for our project, we wanted to use Stanford’s gavel repository in order to run and evaluate already-implemented and self-implemented scheduling policies using the following metrics: average job completion time (JCT), makespan, and cluster utilization. Scheduling policies are algorithms that are used by operating systems or applications to manage the order in which tasks are executed. It is imperative that these policies exist in order to facilitate the multi-tasking of computation and optimize resource allocation. This project documents and compares different scheduling policies to assess their impact given the specified cluster configurations and workload traces, thereby yielding scheduling simulation results.
+
+## Design Overview
+The system is built using three different components: the simulator for cluster experiments, workload traces, and cluster specifications. The main areas of attention in our repository are the scheduler (scheduling mechanism and simulator), policies (implementations of various algorithms), and performance (evaluates results).
+
+- Workload Traces - a record of the jobs given their arrival time and resource requirements.
+- Cluster Specifications - available types and quantities of GPU resources.
+
+The simulator is given a workload trace and cluster specifications and yields data regarding the efficiency of the scheduling policy.
 
 ## Directory Structure
 
@@ -23,119 +36,120 @@ integrate with the `GavelIterator`.
 
 ### Software Dependencies
 
-Gavel is implemented in Python. We have tested Gavel on Ubuntu 16.04 with Python 3.8.
-Python 3.8 can be installed using [Miniconda](https://docs.conda.io/en/latest/miniconda.html).
+Gavel is implemented in Python. We have tested Gavel on Ubuntu 16.04 with Python 3.8
+and on Ubuntu 20.04 with Python 3.11.5. To make it easier to replicate environments,
+we dockerized our application.
 
-Required software dependencies can be installed using,
+To begin, we created a script to generate necessary the Dockerfile and adjust the
+`scheduler/requirements.txt` to have the correct libraries.
 
 ```bash
-apt-get -y install cmake g++ gcc libnuma-dev make numactl zlib1g-dev
-pip install -r scheduler/requirements.txt
-cd scheduler; make
+chmod +x generate_files.sh
+./generate_files.sh
 ```
 
-These software dependencies have already been installed on the following
-AMI on Amazon EC2,
+Next, we can simply build and run the docker environment.
 
-| Field  | Value |
-| -------------  | ------------- |
-| Cloud Provider | AWS |
-| Region         | us-east-1  |
-| AMI ID         | ami-03e41a79bb745ce18  |
-| AMI Name       | gavel |
-
-See [this link](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/finding-an-ami.html)
-for how to find and launch a public AMI (this assumes you have a valid billable AWS account setup).
+```bash
+docker build -t gavel_project .
+docker run -it gavel_project
+```
 
 ## Getting Started
 
-Gavel's heterogeneity-aware policies and scheduling mechanism can be evaluated
-either in simulation or on a physical cluster.
+We evaluated Gavel's heterogeneity-aware policies and scheduling mechanism on a simulation cluster.
 
-To evaluate variants of the LAS policy (`max_min_fairness*`) in
-simulation, one can use the following command line (this sweep script runs
-the different policies for multiple _continuous_ traces, generated using
-different seeds and Poisson arrival rates):
+To simulate a cluster, we ran the `simulate_scheduler_with_trace.py` on the `medium_test.trace` file. This file provided us a high enough cluster utilization rate that allowed us to evaluate different policies. However, more traces can be found in `traces/physical_cluster`. For consistent results, we kept the cluster amount to 4 and seed to 123.
 
 ```bash
-python -u scripts/sweeps/run_sweep_continuous.py -s 4000 -e 5000 -l /path/to/log/directory -j 6 -p max_min_fairness max_min_fairness_perf --seeds 0 1 2 -c 36:36:36 -a 0.0 -b 1.0 -n 5
+python scripts/drivers/simulate_scheduler_with_trace.py -t traces/physical_cluster/medium_test.trace -p <insert-policy> -c 4:0:0 --seed 123
 ```
 
-Other arguments for the `run_sweep_continuous.py` script are
-shown using the `-h` option:
+Here's an example of how we simulated the 'fifo' policy:
 
 ```bash
-usage: run_sweep_continuous.py [-h] [-l LOG_DIR] [-s WINDOW_START] [-e WINDOW_END] [-t TIMEOUT] [-j PROCESSES] [-p POLICIES [POLICIES ...]] [-c CLUSTER_SPEC [CLUSTER_SPEC ...]]
-                               [--num_gpus_per_server NUM_GPUS_PER_SERVER] [--seeds SEEDS [SEEDS ...]] [-i INTERVAL] [-f FIXED_JOB_DURATION]
-                               [--cutoff-throughputs-file CUTOFF_THROUGHPUTS_FILE] [--throughputs-file THROUGHPUTS_FILE] [-m] [--generate-multi-priority-jobs]
-                               [--simulate-steady-state] [--solver {ECOS,GUROBI,SCS}] [-v] [--checkpoint-threshold CHECKPOINT_THRESHOLD]
-                               [--profiling_percentages PROFILING_PERCENTAGES [PROFILING_PERCENTAGES ...]] [--num_reference_models NUM_REFERENCE_MODELS [NUM_REFERENCE_MODELS ...]]
-                               [--ideal] [-a THROUGHPUT_LOWER_BOUND] [-b THROUGHPUT_UPPER_BOUND] [-n NUM_DATA_POINTS] [-u UTILIZATION_THRESHOLD]
+python scripts/drivers/simulate_scheduler_with_trace.py -t traces/physical_cluster/medium_test.trace -p fifo -c 4:0:0 --seed 123
+```
 
-Sweep through lambda values
+Other arguments for the `simulate_scheduler_with_trace.py` script are shown using the -h option:
+```bash
+usage: simulate_scheduler_with_trace.py [-h] -t TRACE_FILE
+                                        [-p {allox,fifo,fifo_perf,fifo_packed,finish_time_fairness,finish_time_fairness_perf,finish_time_fairness_packed,gandiva,isolated,lifo,max_min_fairness,max_min_fairness_perf,max_min_fairness_packed,max_min_fairness_water_filling,max_min_fairness_water_filling_perf,max_min_fairness_water_filling_packed,max_sum_throughput_perf,max_sum_throughput_normalized_by_cost_perf,max_sum_throughput_normalized_by_cost_perf_SLOs,max_sum_throughput_normalized_by_cost_packed_SLOs,min_total_duration,min_total_duration_perf,min_total_duration_packed,sjf,srtf}]
+                                        [--throughputs_file THROUGHPUTS_FILE] [-c CLUSTER_SPEC] [--num_gpus_per_server NUM_GPUS_PER_SERVER] [--seed SEED]
+                                        [--solver {ECOS,GUROBI,SCS}] [-d] [--checkpoint_threshold CHECKPOINT_THRESHOLD] [--checkpoint_file CHECKPOINT_FILE]
+                                        [--time_per_iteration TIME_PER_ITERATION] [-s WINDOW_START] [-e WINDOW_END]
+
+Run scheduler with trace
 
 optional arguments:
   -h, --help            show this help message and exit
-  -l LOG_DIR, --log-dir LOG_DIR
-                        Log directory
-  -s WINDOW_START, --window-start WINDOW_START
-                        Measurement window start (job ID)
-  -e WINDOW_END, --window-end WINDOW_END
-                        Measurement window end (job ID)
-  -t TIMEOUT, --timeout TIMEOUT
-                        Timeout (in seconds) for each run
-  -j PROCESSES, --processes PROCESSES
-                        Number of processes to use in pool (use as many as available if not specified)
-  -p POLICIES [POLICIES ...], --policies POLICIES [POLICIES ...]
-                        List of policies to sweep
-  -c CLUSTER_SPEC [CLUSTER_SPEC ...], --cluster-spec CLUSTER_SPEC [CLUSTER_SPEC ...]
+  -t TRACE_FILE, --trace_file TRACE_FILE
+                        Trace file
+  -p {allox,fifo,fifo_perf,fifo_packed,finish_time_fairness,finish_time_fairness_perf,finish_time_fairness_packed,gandiva,isolated,lifo,max_min_fairness,max_min_fairness_perf,max_min_fairness_packed,max_min_fairness_water_filling,max_min_fairness_water_filling_perf,max_min_fairness_water_filling_packed,max_sum_throughput_perf,max_sum_throughput_normalized_by_cost_perf,max_sum_throughput_normalized_by_cost_perf_SLOs,max_sum_throughput_normalized_by_cost_packed_SLOs,min_total_duration,min_total_duration_perf,min_total_duration_packed,sjf,srtf}, --policy {allox,fifo,fifo_perf,fifo_packed,finish_time_fairness,finish_time_fairness_perf,finish_time_fairness_packed,gandiva,isolated,lifo,max_min_fairness,max_min_fairness_perf,max_min_fairness_packed,max_min_fairness_water_filling,max_min_fairness_water_filling_perf,max_min_fairness_water_filling_packed,max_sum_throughput_perf,max_sum_throughput_normalized_by_cost_perf,max_sum_throughput_normalized_by_cost_perf_SLOs,max_sum_throughput_normalized_by_cost_packed_SLOs,min_total_duration,min_total_duration_perf,min_total_duration_packed,sjf,srtf}
+                        Scheduler policy
+  --throughputs_file THROUGHPUTS_FILE
+                        Oracle throughputs file
+  -c CLUSTER_SPEC, --cluster_spec CLUSTER_SPEC
                         Cluster specification in the form of #v100s:#p100s:#k80s
   --num_gpus_per_server NUM_GPUS_PER_SERVER
                         Cluster specification in the form of #v100s:#p100s:#k80s
-  --seeds SEEDS [SEEDS ...]
-                        List of random seeds
-  -i INTERVAL, --interval INTERVAL
-                        Interval length (in seconds)
-  -f FIXED_JOB_DURATION, --fixed-job-duration FIXED_JOB_DURATION
-                        If set, fixes the duration of all jobs to the specified value (in seconds)
-  --cutoff-throughputs-file CUTOFF_THROUGHPUTS_FILE
-                        If set, uses the attached cutoff_throughputs JSON file in sweep to limit args run
-  --throughputs-file THROUGHPUTS_FILE
-                        Oracle throughputs file
-  -m, --generate-multi-gpu-jobs
-                        If set, generates multi-GPU jobs according to a pre-defined distribution
-  --generate-multi-priority-jobs
-                        If set, generates some jobs with higher priority
-  --simulate-steady-state
-                        If set, adds as many jobs as there are workers before beginning the simulation.
+  --seed SEED           Random seed
   --solver {ECOS,GUROBI,SCS}
                         CVXPY solver
-  -v, --verbose         Verbose
-  --checkpoint-threshold CHECKPOINT_THRESHOLD
-                        Checkpoint threshold, None if checkpointing is disabled. Checkpoint is created after this job ID is added.
-  --profiling_percentages PROFILING_PERCENTAGES [PROFILING_PERCENTAGES ...]
-                        Percentages of machines dedicated to profiling co-located job pairs
-  --num_reference_models NUM_REFERENCE_MODELS [NUM_REFERENCE_MODELS ...]
-                        Number of reference models to use when estimating throughputs
-  --ideal               Run allocations 100% ideally
-
-Automatic sweep:
-  -u UTILIZATION_THRESHOLD, --utilization-threshold UTILIZATION_THRESHOLD
-                        Utilization threshold to use when automatically sweeping lambdas
-
-Sweep over fixed range:
-  -a THROUGHPUT_LOWER_BOUND, --throughput-lower-bound THROUGHPUT_LOWER_BOUND
-                        Lower bound for throughput interval to sweep
-  -b THROUGHPUT_UPPER_BOUND, --throughput-upper-bound THROUGHPUT_UPPER_BOUND
-                        Upper bound for throughput interval to sweep
-  -n NUM_DATA_POINTS, --num-data-points NUM_DATA_POINTS
-                        Number of data points to sweep through
+  -d, --debug           Debug
+  --checkpoint_threshold CHECKPOINT_THRESHOLD
+                        Create checkpoint when this job ID comes in
+  --checkpoint_file CHECKPOINT_FILE
+                        Load checkpoint located at passed incheckpoint_file
+  --time_per_iteration TIME_PER_ITERATION
+                        Time per iteration in seconds
+  -s WINDOW_START, --window-start WINDOW_START
+                        measurement window start (job id)
+  -e WINDOW_END, --window-end WINDOW_END
+                        Measurement window end (job ID)
 ```
 
-To evaluate policies on static traces (jobs only added to the cluster at the start
-of the trace), one can use the `scripts/sweeps/run_sweep_static.py` script, which
-runs different policies on multiple _static_ traces, generated using different
-seeds and numbers of jobs.
+## Scheduling Policies
+Already-implemented:
+- FIFO (First-In-First-Out) - jobs scheduled in order of arrival.
+- Max_Min_Fairness - emphasizes fairness by maximizing the minimum allocation to any process and ensures that resources are distributed to avoid imbalances.
 
-For more detailed instructions on how to reproduce results from the OSDI paper,
-see [EXPERIMENTS.md](EXPERIMENTS.md).
+Self-implemented:
+- LIFO (Last-In-First-Out) - jobs scheduled in order of most recently arrived.
+- SJF (Shortest Job First) - prioritizes jobs based on execution time.
+- SJF_Packed (Shortest Job First with Packing) - variation of SJF that optimizes utilization and throughput by packing shorter jobs together.
+- SRTF (Shortest Remaining Time First) - preemptive variation of SJF that can interrupt a currently running process if a shorter remaining time job arrives.
+
+## Performance Evaluation
+Our system evaluates each scheduling policy using the following metrics: average job completion time (JCT), makespan, and cluster utilization. Average job completion time is self-explanatory, which is the mean time taken to finish jobs after their arrival time. Makespan is the total time to run all the jobs in the workload trace. Cluster utilization is the efficiency of resource usage to make sure that GPU’s don’t idle. When conducting our experiments, we used 4 GPU’s. All of these metrics allow us to get a good understanding of the strengths and weaknesses of each scheduling policy that we test in the simulator.
+
+# Results
+FIFO
+- Average JCT - 6.77 hrs
+- Makespan - 14.91 hrs
+- Cluster Utilization - 81.2%
+Max_Min_Fairness
+- Average JCT - 8.54 hrs
+- Makespan - 12.42 hrs
+- Cluster Utilization - 97.5%
+LIFO
+- Average JCT - 8.02 hrs
+- Makespan - 14.15 hrs
+- Cluster Utilization - 85.6%
+SJF
+- Average JCT - 8.37 hrs
+- Makespan - 12.53 hrs
+- Cluster Utilization - 96.7%
+SJF_Packed
+- Average JCT - 5.63 hrs
+- Makespan - 11.24 hrs
+- Cluster Utilization - 83.1%
+SRTF
+- Average JCT - 7.79 hrs
+- Makespan - 12.82 hrs
+- Cluster Utilization - 94.5%
+
+## Analysis and Conclusion
+We see that FIFO had the second lowest average JCT of 6.77 hours but the largest makespan of 14.91 hours. Max_Min_Fairness exhibited higher average JCT of 8.54 hours, lower makespan of 12.42 hours, and high cluster utilization of 97.5% which suggests that it balances between individual job processing time and overall efficiency well. LIFO had an average performance in all three metrics which indicates that it does not excel in any particular area. SJF had similar performances to Max_Min_Fairness which indicates its reliability and efficiency. SJF_Packed had the lowest average JCT of 5.63 hours and also the lowest makespan of 11.24 hours.
+
+In conclusion, our project demonstrated the differences between each scheduling policy using the metrics we used to test them. Different applications with varying goals may utilize different scheduling policies for varying results. If an application were to prioritize individual job completion time, SJF_Packed is the best choice with the lowest average JCT. If an application were to prioritize a balance between efficient use of resources and overall completion time, Max_Min_Fairness and SRTF would be preferable.
