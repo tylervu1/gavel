@@ -1,4 +1,5 @@
-# Heterogeneity-Aware Cluster Scheduling Policies for Deep Learning Workloads
+# Develop and Evaluate Simple Scheduling Policies
+## COS316 Final Project - Tyler Vu and Andrew Hwang
 
 This repository contains the source code implementation of the OSDI paper
 "Heterogeneity-Aware Cluster Scheduling Policies for Deep Learning Workloads".
@@ -123,27 +124,32 @@ Self-implemented:
 ## Performance Evaluation
 Our system evaluates each scheduling policy using the following metrics: average job completion time (JCT), makespan, and cluster utilization. Average job completion time is self-explanatory, which is the mean time taken to finish jobs after their arrival time. Makespan is the total time to run all the jobs in the workload trace. Cluster utilization is the efficiency of resource usage to make sure that GPU’s don’t idle. When conducting our experiments, we used 4 GPU’s. All of these metrics allow us to get a good understanding of the strengths and weaknesses of each scheduling policy that we test in the simulator.
 
-# Results
+### Results
 FIFO
 - Average JCT - 6.77 hrs
 - Makespan - 14.91 hrs
 - Cluster Utilization - 81.2%
+
 Max_Min_Fairness
 - Average JCT - 8.54 hrs
 - Makespan - 12.42 hrs
 - Cluster Utilization - 97.5%
+
 LIFO
 - Average JCT - 8.02 hrs
 - Makespan - 14.15 hrs
 - Cluster Utilization - 85.6%
+
 SJF
 - Average JCT - 8.37 hrs
 - Makespan - 12.53 hrs
 - Cluster Utilization - 96.7%
+
 SJF_Packed
 - Average JCT - 5.63 hrs
 - Makespan - 11.24 hrs
 - Cluster Utilization - 83.1%
+
 SRTF
 - Average JCT - 7.79 hrs
 - Makespan - 12.82 hrs
